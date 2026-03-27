@@ -1,0 +1,14 @@
+version: "3.9"
+
+services:
+  api:
+    build: .
+    container_name: api_jogos
+    ports:
+      - "8000:8000"
+    environment:
+      MEU_USUARIO: admin
+      MEU_SENHA: 123
+    volumes:
+      - .:/app:Z
+    restart: always

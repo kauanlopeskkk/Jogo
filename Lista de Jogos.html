@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <title>Lista de Jogos</title>
+</head>
+<body>
+<link rel="stylesheet" href="style.css">
+<h1>🎮 Cadastro de Jogos</h1>
+
+<form id="jogoForm">
+    <input id="nome_jogo" placeholder="Nome do Jogo" required>
+    <input id="genero" placeholder="Gênero" required>
+    <input id="plataforma" placeholder="Plataforma" required>
+    <input id="ano" type="number" placeholder="Ano" required>
+    <input id="desenvolvedora" placeholder="Desenvolvedora" required>
+    <input id="preco" type="number" step="0.01" placeholder="Preço" required>
+    <button type="submit">Salvar</button>
+</form>
+
+<ul id="listaJogos"></ul>
+
+<script src="script.js"></script>
+</body>
+</html>
