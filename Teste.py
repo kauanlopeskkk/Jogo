@@ -4,20 +4,32 @@ from fastapi.security import HTTPBasic, HTTPBasicCredentials
 from fastapi.middleware.cors import CORSMiddleware
 import secrets
 import os
-from sqlalchemy import create_engine, Column, Integer, String , Float
-from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import sessionmaker, Session
-from sqlalchemy import create_engine
-  
+import json
+
+from sqlalchemy import create_engine, Column, Integer, String, Float
+from sqlalchemy.orm import declarative_base, sessionmaker, Session
+import redis
+
+
 
 
 DATABASE_URL = "sqlite:///./ListaJogos.db"
 
-engine = create_engine(DATABASE_URL,connect_args={"check_same_thread": False})
+engine = create_engine(
+    DATABASE_URL, connect_args={"check_same_thread": False}
+)
+
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
-MEU_USUARIO = os.getenv("MEU_USUARIO")
-MEU_SENHA = os.getenv("MEU_SENHA")
+
+
+
+
+MEU_USUARIO = os.getenv("MEU_USUARIO", "admin")
+MEU_SENHA = os.getenv("MEU_SENHA", "123")
+
+
+
 app = FastAPI()
 
 app.add_middleware(
@@ -25,16 +37,38 @@ app.add_middleware(
     allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
-    allow_headers=["*"]
+    allow_headers=["*"],
 )
+
+
+
+
+redis_client = redis.Redis(
+    host="redis",  
+    port=6379,
+    decode_responses=True
+)
+
+
 
 
 security = HTTPBasic()
 
-meu_Jogos = []
+
+def autenticar_usuario(credentials: HTTPBasicCredentials = Depends(security)):
+    if not (
+        secrets.compare_digest(credentials.username, MEU_USUARIO)
+        and secrets.compare_digest(credentials.password, MEU_SENHA)
+    ):
+        raise HTTPException(status_code=401, detail="Usuário ou senha incorretos")
+
+    return credentials.username
+
+
 
 class JogoDB(Base):
     __tablename__ = "jogos"
+
     id = Column(Integer, primary_key=True, index=True)
     nome_jogo = Column(String, index=True)
     genero = Column(String, index=True)
@@ -42,6 +76,7 @@ class JogoDB(Base):
     ano_lancamento = Column(Integer, index=True)
     desenvolvedora = Column(String, index=True)
     preco = Column(Float, index=True)
+
 
 Base.metadata.create_all(bind=engine)
 
@@ -54,6 +89,11 @@ class Jogo(BaseModel):
     desenvolvedora: str
     preco: float
 
+
+# =========================
+# DB SESSION
+# =========================
+
 def sessao_db():
     db = SessionLocal()
     try:
@@ -61,110 +101,170 @@ def sessao_db():
     finally:
         db.close()
 
-def autenticar_usuario(credentials: HTTPBasicCredentials = Depends(security)):
-    correct_username = secrets.compare_digest(credentials.username, MEU_USUARIO)
-    correct_password = secrets.compare_digest(credentials.password, MEU_SENHA)
-    if not (correct_username and correct_password):
-        raise HTTPException(status_code=401, detail="Usuário ou senha incorretos")
-    return credentials.username
+
+# =========================
+# REDIS HELPERS (SEM ASYNC)
+# =========================
+
+def salvar_jogo_no_redis(jogo: Jogo):
+    try:
+        redis_client.rpush("jogos", json.dumps(jogo.dict()))
+    except Exception as e:
+        print(f"Erro Redis (salvar): {e}")
+
+
+def deletar_jogo_do_redis(id_jogo: int):
+    try:
+        jogos = redis_client.lrange("jogos", 0, -1)
+
+        for jogo in jogos:
+            data = json.loads(jogo)
+            if data.get("id") == id_jogo:
+                redis_client.lrem("jogos", 0, jogo)
+    except Exception as e:
+        print(f"Erro Redis (deletar): {e}")
+
+
+def limpar_cache():
+    try:
+        for key in redis_client.scan_iter("Jogos:page=*"):
+            redis_client.delete(key)
+    except Exception as e:
+        print(f"Erro Redis: {e}")
+
+
+
 
 @app.get("/")
-def Jogo_raiz():
+def raiz():
     return {"mensagem": "Bem-vindo à API de Jogos!"}
 
+
+@app.get("/redis")
+def listar_jogos_redis():
+    try:
+        jogos = redis_client.lrange("jogos", 0, -1)
+        return [json.loads(jogo) for jogo in jogos]
+    except Exception as e:
+        return {"erro": str(e)}
+
+
 @app.post("/jogos")
-def adicionar_Jogo(jogo: Jogo, db: Session = Depends(sessao_db), _: HTTPBasicCredentials = Depends(autenticar_usuario)):
+def adicionar_jogo(
+    jogo: Jogo,
+    db: Session = Depends(sessao_db),
+    _: HTTPBasicCredentials = Depends(autenticar_usuario),
+):
     db_jogo = db.query(JogoDB).filter(
-        JogoDB.nome_jogo == jogo.nome_jogo,
-        JogoDB.genero == jogo.genero,
-        JogoDB.plataforma == jogo.plataforma,
-        JogoDB.ano_lancamento == jogo.ano_lancamento,
-        JogoDB.desenvolvedora == jogo.desenvolvedora,
-        JogoDB.preco == jogo.preco
-     ).first()
+        JogoDB.nome_jogo == jogo.nome_jogo
+    ).first()
+
     if db_jogo:
-        raise HTTPException(status_code=400, detail="Esse Jogo existe dentro do Banco de Dados")
-    novo_jogo = JogoDB(
-        nome_jogo=jogo.nome_jogo,
-        genero=jogo.genero,
-        plataforma=jogo.plataforma,
-        ano_lancamento=jogo.ano_lancamento,
-        desenvolvedora=jogo.desenvolvedora,
-        preco=jogo.preco
-    )
+        raise HTTPException(status_code=400, detail="Jogo já existe")
+
+    novo_jogo = JogoDB(**jogo.dict())
 
     db.add(novo_jogo)
     db.commit()
     db.refresh(novo_jogo)
-    return {"mensagem": "Jogo adicionado com sucesso", "jogo": {
-        "id": novo_jogo.id,
-        "nome_jogo": novo_jogo.nome_jogo,
-        "genero": novo_jogo.genero,
-        "plataforma": novo_jogo.plataforma,
-        "ano_lancamento": novo_jogo.ano_lancamento,
-        "desenvolvedora": novo_jogo.desenvolvedora,
-        "preco": novo_jogo.preco
-    }}
+
+    salvar_jogo_no_redis(jogo)
+    limpar_cache()
+
+    return {"mensagem": "Jogo adicionado", "id": novo_jogo.id}
+
+
 @app.get("/jogos")
-def listar_Jogos(
+def listar_jogos(
     page: int = 1,
-    limit: int = 10,
+    size: int = 10,
     db: Session = Depends(sessao_db),
-    _: HTTPBasicCredentials = Depends(autenticar_usuario)
+    _: HTTPBasicCredentials = Depends(autenticar_usuario),
 ):
-    if page < 1 or limit < 1:
-        raise HTTPException(status_code=400, detail="Parâmetros de paginação inválidos")
-    
-    jogos = db.query(JogoDB).offset((page - 1) * limit).limit(limit).all()
-    
+    if page < 1 or size < 1:
+        raise HTTPException(status_code=400, detail="Parâmetros inválidos")
+
+    cache_key = f"Jogos:page={page}:size={size}"
+
+    try:
+        cached = redis_client.get(cache_key)
+        if cached:
+            return json.loads(cached)
+    except:
+        pass
+
+    jogos = db.query(JogoDB).offset((page - 1) * size).limit(size).all()
+
     if not jogos:
-        raise HTTPException(status_code=404, detail="Nenhum jogo cadastrado")
-    
-    total_jogos = db.query(JogoDB).all()
-    
-    return {
+        raise HTTPException(status_code=404, detail="Nenhum jogo encontrado")
+
+    total = db.query(JogoDB).count()
+
+    resposta = {
         "page": page,
-        "limit": limit,
-        "total": total_jogos,
-        "jogos": [{"id": jogo.id,"nome_jogo": jogo.nome_jogo,"genero": jogo.genero,"plataforma": jogo.plataforma,"ano_lancamento": jogo.ano_lancamento,"desenvolvedora": jogo.desenvolvedora,"preco": jogo.preco} for jogo in jogos]
+        "size": size,
+        "total": total,
+        "jogos": [
+            {
+                "id": j.id,
+                "nome_jogo": j.nome_jogo,
+                "genero": j.genero,
+                "plataforma": j.plataforma,
+                "ano_lancamento": j.ano_lancamento,
+                "desenvolvedora": j.desenvolvedora,
+                "preco": j.preco,
+            }
+            for j in jogos
+        ],
     }
 
+    try:
+        redis_client.setex(cache_key, 600, json.dumps(resposta))
+    except:
+        pass
+
+    return resposta
 
 
-@app.put("/atualizar_Jogos/{id_jogo}")
-def atualizar_Jogo(
+@app.put("/jogos/{id_jogo}")
+def atualizar_jogo(
     id_jogo: int,
     jogo: Jogo,
-    db:Session = Depends(sessao_db),
-    _: HTTPBasicCredentials = Depends(autenticar_usuario)
+    db: Session = Depends(sessao_db),
+    _: HTTPBasicCredentials = Depends(autenticar_usuario),
 ):
     db_jogo = db.query(JogoDB).filter(JogoDB.id == id_jogo).first()
-    if not db_jogo:
-        raise HTTPException(status_code=404, detail="Este jogo não foi encontrado no seu banco de dados")
-    db_jogo.nome_jogo = jogo.nome_jogo
-    db_jogo.genero = jogo.genero
-    db_jogo.plataforma = jogo.plataforma
-    db_jogo.ano_lancamento = jogo.ano_lancamento
-    db_jogo.desenvolvedora = jogo.desenvolvedora
-    db_jogo.preco = jogo.preco
-    db.commit()
-    db.refresh(db_jogo)
-    return {"mensagem": "Jogo atualizado com sucesso", "jogo": {
-        "id": db_jogo.id,
-        "nome_jogo": db_jogo.nome_jogo,
-        "genero": db_jogo.genero,
-        "plataforma": db_jogo.plataforma,
-        "ano_lancamento": db_jogo.ano_lancamento,
-        "desenvolvedora": db_jogo.desenvolvedora,
-        "preco": db_jogo.preco
-    }}
 
-
-@app.delete("/deletar_Jogos/{id_jogo}")
-def deletar_Jogo(id_jogo: int, db: Session = Depends(sessao_db), _: HTTPBasicCredentials = Depends(autenticar_usuario)):
-    db_jogo = db.query(JogoDB).filter(JogoDB.id == id_jogo).first()
     if not db_jogo:
         raise HTTPException(status_code=404, detail="Jogo não encontrado")
+
+    for key, value in jogo.dict().items():
+        setattr(db_jogo, key, value)
+
+    db.commit()
+    db.refresh(db_jogo)
+
+    limpar_cache()
+    salvar_jogo_no_redis(jogo)
+
+    return {"mensagem": "Jogo atualizado"}
+
+
+@app.delete("/jogos/{id_jogo}")
+def deletar_jogo(
+    id_jogo: int,
+    db: Session = Depends(sessao_db),
+    _: HTTPBasicCredentials = Depends(autenticar_usuario),
+):
+    db_jogo = db.query(JogoDB).filter(JogoDB.id == id_jogo).first()
+
+    if not db_jogo:
+        raise HTTPException(status_code=404, detail="Jogo não encontrado")
+
     db.delete(db_jogo)
     db.commit()
-    return {"mensagem": "Jogo deletado com sucesso"}
+
+    limpar_cache()
+    deletar_jogo_do_redis(id_jogo)
+
+    return {"mensagem": "Jogo deletado"}

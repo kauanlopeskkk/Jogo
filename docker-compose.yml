@@ -1,14 +1,21 @@
 version: "3.9"
 
 services:
+  redis:
+    image: docker.io/library/redis
+    ports:
+      - "6379:6379"
+
   api:
     build: .
-    container_name: api_jogos
     ports:
       - "8000:8000"
-    environment:
-      MEU_USUARIO: admin
-      MEU_SENHA: 123
-    volumes:
-      - .:/app:Z
-    restart: always
+    depends_on:
+      - redis
+
+
+
+
+
+
+      
