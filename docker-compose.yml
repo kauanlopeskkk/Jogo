@@ -12,6 +12,13 @@ services:
       - "8000:8000"
     depends_on:
       - redis
+  
+clery:
+    build: .
+    command: celery -A app.celery worker --loglevel=info
+    depends_on:
+      - redis 
+      
 
 
 
