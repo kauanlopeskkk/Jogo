@@ -2,5 +2,6 @@ fastapi
 uvicorn
 sqlalchemy
 pydantic
+python-dotenv
 redis
 celery

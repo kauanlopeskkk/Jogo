@@ -1,28 +1,23 @@
 version: "3.9"
 
 services:
-  redis:
-    image: docker.io/library/redis
-    ports:
-      - "6379:6379"
-
   api:
     build: .
+    container_name: fastapi_jogos
     ports:
       - "8000:8000"
-    depends_on:
-      - redis
-  
-clery:
-    build: .
-    command: celery -A app.celery worker --loglevel=info
-    depends_on:
-      - redis 
-      
-
-
-
-
-
-
-      
+    volumes:
+      - .:/app
+    command: uvicorn Teste:app --host 0.0.0.0 --port 8000 --reload
+    env_file:
+      - .env
+    redis:
+      image: redis:latest
+      container_name: redis_jogos
+      ports:
+        - "6379:6379" 
+    celery:
+          image: redis:latest
+          container_name: redis_celery
+          ports:
+            - "6380:6379"
