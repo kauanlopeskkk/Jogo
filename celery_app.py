@@ -26,3 +26,5 @@ def calcular_fatorial(n):
    
    print(f"Fatorial de {n} é {resultado}")
    return resultado
+
+

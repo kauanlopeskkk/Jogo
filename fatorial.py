@@ -29,6 +29,32 @@ app = FastAPI()
 def read_root():
     return {"message": "Bem-vindo à API de Cálculo!"}
 
+@app.get("/debug/redis")
+def debug_redis():
+    fatorial = []
+
+    for key in redis_client.scan_iter():
+        try:
+            valor = redis_client.get(key)
+            contagem = redis_client.ttl(key)
+
+            fatorial.append({
+                "key": key.decode() if isinstance(key, bytes) else str(key),
+                "valor": valor.decode() if valor else None,
+                "contagem": contagem
+            })
+
+        except Exception as e:
+            fatorial.append({
+                "key": key.decode() if isinstance(key, bytes) else str(key),
+                "erro": str(e)
+            })
+
+    return {
+        "fatorial_redis": fatorial
+    }
+
+ 
 
 @app.post("/calcular_soma")
 def calcular_soma_endpoint(request: SomaRequest):
