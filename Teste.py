@@ -13,6 +13,8 @@ from sqlalchemy import create_engine
 from redis import Redis
 from dotenv import load_dotenv
 from celery import Celery
+from celery_app import celery_app
+from kaka_producer import enviar_evento
 load_dotenv() 
 
 REDIS_HOST = os.getenv("REDIS_HOST", "localhost")
@@ -79,11 +81,6 @@ def sessao_db():
         db.close()
 
 
-def salvar_jogo_cache(jogo: Jogo):
-    redis_client.set(f"jogo:{jogo.id}", json.dumps(jogo.model_dump()))
-
-def deletar_jogo_cache(id_jogo: int):
-    redis_client.delete(f"jogo:{id_jogo}")
 
 
 
@@ -97,19 +94,27 @@ def autenticar_usuario(credentials: HTTPBasicCredentials = Depends(security)):
 
 @celery_app.task
 def salvar_jogo_cache_task(jogo_data):
-    redis_client.set(f"jogo:{jogo_data['id']}", json.dumps(jogo_data))
+    redis_client.set(
+        f"jogo:{jogo_data['id']}",
+        json.dumps(jogo_data)
+    )
 
 
 @celery_app.task
 def deletar_jogo_cache_task(id_jogo):
     redis_client.delete(f"jogo:{id_jogo}")
 
+
 @app.get("/")
 def Jogo_raiz():
     return {"mensagem": "Bem-vindo à API de Jogos!"}
 
 @app.post("/jogos")
-def adicionar_Jogo(jogo: Jogo, db: Session = Depends(sessao_db), _: HTTPBasicCredentials = Depends(autenticar_usuario)):
+def adicionar_Jogo(
+    jogo: Jogo,
+    db: Session = Depends(sessao_db),
+    _: HTTPBasicCredentials = Depends(autenticar_usuario)
+):
     db_jogo = db.query(JogoDB).filter(
         JogoDB.nome == jogo.nome,
         JogoDB.genero == jogo.genero,
@@ -117,9 +122,14 @@ def adicionar_Jogo(jogo: Jogo, db: Session = Depends(sessao_db), _: HTTPBasicCre
         JogoDB.ano_lancamento == jogo.ano_lancamento,
         JogoDB.desenvolvedora == jogo.desenvolvedora,
         JogoDB.preco == jogo.preco
-     ).first()
+    ).first()
+
     if db_jogo:
-        raise HTTPException(status_code=400, detail="Esse Jogo existe dentro do Banco de Dados")
+        raise HTTPException(
+            status_code=400,
+            detail="Esse Jogo existe dentro do Banco de Dados"
+        )
+
     novo_jogo = JogoDB(
         nome=jogo.nome,
         genero=jogo.genero,
@@ -133,20 +143,9 @@ def adicionar_Jogo(jogo: Jogo, db: Session = Depends(sessao_db), _: HTTPBasicCre
     db.commit()
     db.refresh(novo_jogo)
 
-    salvar_jogo_cache_task.delay({
-
-        "id": novo_jogo.id,
-        "nome": novo_jogo.nome,
-        "genero": novo_jogo.genero,
-        "plataforma": novo_jogo.plataforma,
-        "ano_lancamento": novo_jogo.ano_lancamento,
-        "desenvolvedora": novo_jogo.desenvolvedora,
-        "preco": novo_jogo.preco
-
  
-    })
 
-    return {"mensagem": "Jogo adicionado com sucesso", "jogo": {
+    jogo_evento = {
         "id": novo_jogo.id,
         "nome": novo_jogo.nome,
         "genero": novo_jogo.genero,
@@ -154,16 +153,38 @@ def adicionar_Jogo(jogo: Jogo, db: Session = Depends(sessao_db), _: HTTPBasicCre
         "ano_lancamento": novo_jogo.ano_lancamento,
         "desenvolvedora": novo_jogo.desenvolvedora,
         "preco": novo_jogo.preco
-    }}
+    }
+
+    salvar_jogo_cache_task.delay(jogo_evento)
+
+    enviar_evento(
+        topico="jogo_criado",
+        evento=jogo_evento
+    )
+
+    return {
+        "mensagem": "Jogo adicionado com sucesso",
+        "jogo": jogo_evento
+    }
 
 @app.get("/debug/redis")
 def debug_redis():
     chaves = redis_client.keys("jogo:*")
     jogos_cache = []
+
     for chave in chaves:
         valor = redis_client.get(chave)
-        jogos_cache.append({chave: json.loads(valor)})
-    return {"jogos_cache": jogos_cache}
+        jogos_cache.append({
+            chave: json.loads(valor)
+        })
+
+    return {
+        "jogos_cache": jogos_cache
+    }
+
+
+
+
 
 @app.get("/jogos")
 def listar_jogos(
