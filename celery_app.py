@@ -8,23 +8,21 @@ app = Celery(
 )
 
 
-
 @app.task
-def calcular_soma(a,b):
-   time.sleep(5)
-   return a + b
+def calcular_soma(a, b):
+    return a + b
+
 
 @app.task
 def calcular_fatorial(n):
-   time.sleep(10)
-   if n < 0:
-      return "Error: Número negativo não tem fatorial"
-   
-   resultado = 1
-   for i in range(1, n + 1):
-      resultado *= i
-   
-   print(f"Fatorial de {n} é {resultado}")
-   return resultado
+    if n < 0:
+        return "Erro: número negativo não possui fatorial"
+
+    resultado = 1
+
+    for i in range(1, n + 1):
+        resultado *= i
+
+    return resultado
 
 
