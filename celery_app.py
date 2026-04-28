@@ -11,7 +11,7 @@ app = Celery(
 @app.task
 def calcular_soma(a, b):
     return a + b
-calcular_soma.delay(5)
+
 
 @app.task
 def calcular_fatorial(n):
@@ -22,7 +22,7 @@ def calcular_fatorial(n):
 
     for i in range(1, n + 1):
         resultado *= i
-    calcular_fatorial.delay(10)
+    
     return resultado
 
 
