@@ -1,44 +1,47 @@
-# README.md
+# 🚀 Projeto FastAPI + Celery + Redis
 
-## Projeto FastAPI + Celery + Redis
+Este projeto implementa uma API utilizando **FastAPI** com processamento assíncrono através do **Celery** e **Redis** como broker e backend de resultados.
 
-Este projeto implementa uma API utilizando FastAPI com processamento assíncrono através do Celery e Redis como broker e backend de resultados.
-
-A aplicação permite executar tarefas assíncronas de:
-
-* cálculo de soma
-* cálculo de fatorial
-* consulta de resultados das tarefas
-* listagem das tarefas recentes armazenadas no Redis
+A aplicação permite executar tarefas demoradas de forma assíncrona, simulando processamento com `time.sleep()`.
 
 ---
 
-## Tecnologias utilizadas
+## 📌 Funcionalidades
+
+* Cálculo de soma assíncrona
+* Cálculo de fatorial assíncrono
+* Consulta de status e resultado de tarefas
+* Listagem de tarefas recentes
+* Simulação de tarefas demoradas
+
+---
+
+## 🛠️ Tecnologias utilizadas
 
 * Python 3
 * FastAPI
 * Celery
 * Redis
-* Podman / Docker
+* Docker / Docker Compose
 * Pydantic
 
 ---
 
-## Estrutura do projeto
+## 📁 Estrutura do projeto
 
-```text
+```
 .
-|-- fatorial.py
-|-- celery_app.py
-|-- docker-compose.yml
-|-- dockerfile
-|-- requirements.txt
-`-- README.md
+├── fatorial.py
+├── celery_app.py
+├── docker-compose.yml
+├── Dockerfile
+├── requirements.txt
+└── README.md
 ```
 
 ---
 
-## Como executar o projeto
+## ⚙️ Como executar o projeto
 
 ### 1. Clonar o repositório
 
@@ -51,28 +54,26 @@ cd nome-do-projeto
 
 ### 2. Subir os containers
 
-### Usando Podman
-
-```bash
-podman-compose up --build
-```
-
-### Usando Docker
-
 ```bash
 docker compose up --build
 ```
 
 ---
 
-## Serviços executados
+## 🔧 Serviços executados
 
 ### API FastAPI
 
-Disponível em:
+Acesse:
 
-```text
-http://localhost:8001
+```
+http://localhost:8000
+```
+
+Documentação interativa:
+
+```
+http://localhost:8000/docs
 ```
 
 ---
@@ -81,9 +82,9 @@ http://localhost:8001
 
 Utilizado como:
 
-* broker do Celery
-* backend de resultados
-* armazenamento das tarefas recentes
+* Broker do Celery
+* Backend de resultados
+* Armazenamento de tarefas recentes
 
 ---
 
@@ -93,27 +94,19 @@ Responsável pelo processamento assíncrono das tarefas.
 
 ---
 
-## Endpoints disponíveis
-
-### GET /
-
-Retorna mensagem inicial da API.
-
-### Resposta
-
-```json
-{
-  "message": "Bem-vindo à API de Cálculo!"
-}
-```
+## 📡 Endpoints disponíveis
 
 ---
 
-### POST /calcular_soma
+### 🔹 GET /
 
-Realiza soma assíncrona entre dois números.
+Retorna mensagem inicial da API
 
-### Body
+---
+
+### 🔹 POST /calcular_soma
+
+**Body:**
 
 ```json
 {
@@ -122,22 +115,11 @@ Realiza soma assíncrona entre dois números.
 }
 ```
 
-### Resposta
-
-```json
-{
-  "message": "Tarefa de soma iniciada",
-  "task_id": "id-da-task"
-}
-```
-
 ---
 
-### POST /calcular_fatorial
+### 🔹 POST /calcular_fatorial
 
-Realiza cálculo assíncrono do fatorial.
-
-### Body
+**Body:**
 
 ```json
 {
@@ -145,26 +127,72 @@ Realiza cálculo assíncrono do fatorial.
 }
 ```
 
-### Resposta
+---
+
+### 🔹 GET /resultado/{task_id}
+
+Consulta o status e resultado da tarefa.
+
+---
+
+### 🔹 GET /resultado/recentes
+
+Lista as últimas tarefas executadas.
+
+---
+
+### 🔹 GET /debug/redis
+
+Endpoint para debug (uso apenas acadêmico).
+
+---
+
+## 🧪 Como testar a aplicação
+
+### 1. Criar uma tarefa
+
+Exemplo:
+
+```
+POST /calcular_fatorial
+```
+
+Resposta:
 
 ```json
 {
   "message": "Tarefa de fatorial iniciada",
-  "task_id": "id-da-task"
+  "task_id": "abc123"
 }
 ```
 
 ---
 
-### GET /resultado/{task_id}
+### 2. Consultar imediatamente (task em execução)
 
-Consulta o status e resultado da tarefa.
+```
+GET /resultado/abc123
+```
 
-### Resposta
+Resposta:
 
 ```json
 {
-  "task_id": "id-da-task",
+  "task_id": "abc123",
+  "status": "PENDING",
+  "result": null
+}
+```
+
+---
+
+### 3. Consultar após alguns segundos
+
+(aguarde ~5 segundos por causa do `time.sleep()`)
+
+```json
+{
+  "task_id": "abc123",
   "status": "SUCCESS",
   "result": 120
 }
@@ -172,46 +200,46 @@ Consulta o status e resultado da tarefa.
 
 ---
 
-### GET /resultado/recentes
+## ⏱️ Simulação de processamento
 
-Lista as últimas tarefas executadas.
+As tarefas utilizam:
 
----
+```python
+time.sleep(5)
+```
 
-### GET /debug/redis
-
-Endpoint para visualização das chaves armazenadas no Redis.
-
----
-
-## Testes realizados
-
-Os testes foram realizados utilizando:
-
-* navegador via Swagger UI
-* FastAPI Docs
-* chamadas HTTP locais
-* monitoramento do Celery Worker no terminal
-
-Foi validado:
-
-* execução assíncrona das tarefas
-* persistência dos resultados no Redis
-* armazenamento das tarefas recentes
-* consulta correta de status e resultados
+para simular operações demoradas e demonstrar o funcionamento do Celery.
 
 ---
 
-## Observações
+## 📊 Evidências de execução
 
-Foi utilizado `time.sleep()` para simular processamento pesado nas tarefas assíncronas.
+### ✔️ Fluxo testado
 
-Essa abordagem foi utilizada apenas para fins acadêmicos e demonstração do funcionamento do Celery.
-
-Em ambientes reais de produção, essa prática não é recomendada.
+1. Criação de tarefa via API
+2. Status inicial: `PENDING`
+3. Execução no Celery Worker
+4. Resultado final: `SUCCESS`
 
 ---
 
-## Autor
+### ✔️ Log do Worker (exemplo)
+
+```
+Task calcular_fatorial[abc123] received
+Task calcular_fatorial[abc123] succeeded in 5.01s: 120
+```
+
+---
+
+## ⚠️ Observações
+
+* O uso de `time.sleep()` é apenas para fins acadêmicos
+* Em produção, tarefas devem representar processamento real
+* Endpoint `/debug/redis` é apenas para debug
+
+---
+
+## 👤 Autor
 
 Kauan
