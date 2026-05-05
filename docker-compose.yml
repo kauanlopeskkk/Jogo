@@ -26,7 +26,9 @@ services:
       - .:/app
     working_dir: /app
     environment:
+      - REDIS_URL=redis://redis:6379/0
       - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/0
 
   celery:
     build: .
@@ -39,4 +41,6 @@ services:
       - .:/app
     working_dir: /app
     environment:
+      - REDIS_URL=redis://redis:6379/0
       - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/0

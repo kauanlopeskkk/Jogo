@@ -19,3 +19,12 @@ pytest = "^9.0.3"
 [build-system]
 requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
+
+[tool.pytest.ini_options]
+addopts = "-p no:cacheprovider"
+norecursedirs = [
+    ".git",
+    ".pytest_cache",
+    "__pycache__",
+    "pytest-cache-files-*",
+]

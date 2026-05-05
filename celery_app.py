@@ -1,10 +1,15 @@
-import time
+import os
+
 from celery import Celery
+
+
+REDIS_URL = os.getenv("REDIS_URL", os.getenv("CELERY_BROKER_URL", "redis://redis:6379/0"))
+RESULT_BACKEND = os.getenv("CELERY_RESULT_BACKEND", REDIS_URL)
 
 app = Celery(
     "meu_projeto",
-    broker="redis://redis:6379/0",
-    backend="redis://redis:6379/0"
+    broker=REDIS_URL,
+    backend=RESULT_BACKEND,
 )
 
 
@@ -22,7 +27,5 @@ def calcular_fatorial(n):
 
     for i in range(1, n + 1):
         resultado *= i
-    
+
     return resultado
-
-

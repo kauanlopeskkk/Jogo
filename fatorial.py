@@ -1,8 +1,8 @@
-# fatorial.py
+import os
 
-from fastapi import FastAPI, Query
-from celery_app import calcular_fatorial, calcular_soma, app as celery_app
 from celery.result import AsyncResult
+from celery_app import calcular_fatorial, calcular_soma, app as celery_app
+from fastapi import FastAPI
 from pydantic import BaseModel
 from redis import Redis
 
@@ -16,12 +16,9 @@ class FatorialRequest(BaseModel):
     n: int
 
 
-redis_client = Redis(
-    host="redis",
-    port=6379,
-    db=0,
-    decode_responses=True
-)
+REDIS_URL = os.getenv("REDIS_URL", os.getenv("CELERY_BROKER_URL", "redis://redis:6379/0"))
+
+redis_client = Redis.from_url(REDIS_URL, decode_responses=True)
 
 
 def adicionar_tarefa_recente(task_id: str):
@@ -63,17 +60,6 @@ def calcular_fatorial_endpoint(request: FatorialRequest):
     }
 
 
-@app.get("/resultado/{task_id}")
-def get_result(task_id: str):
-    task = AsyncResult(task_id, app=celery_app)
-
-    return {
-        "task_id": task.id,
-        "status": task.status,
-        "result": task.result
-    }
-
-
 @app.get("/resultado/recentes")
 def resultado_recentes():
     task_ids = redis_client.lrange("tarefas_recentes", 0, 9)
@@ -89,6 +75,18 @@ def resultado_recentes():
         })
 
     return resultados
+
+
+@app.get("/resultado/{task_id}")
+def get_result(task_id: str):
+    task = AsyncResult(task_id, app=celery_app)
+
+    return {
+        "task_id": task.id,
+        "status": task.status,
+        "result": task.result
+    }
+
 
 @app.get("/debug/redis")
 def debug_redis():
