@@ -1,125 +1,222 @@
-# 🚀 Projeto FastAPI + Celery + Redis
+# API FastAPI com Celery e Redis
 
-Este projeto implementa uma API utilizando **FastAPI** com processamento assíncrono através do **Celery** e **Redis** como broker e backend de resultados.
+Projeto desenvolvido para demonstrar o uso de tarefas assincronas com **Celery**, utilizando **Redis** como broker e backend de resultados, integrado a uma API criada com **FastAPI**.
 
-A aplicação permite executar tarefas demoradas de forma assíncrona, simulando processamento com `time.sleep()`.
+A API recebe uma requisicao, dispara uma tarefa para o Celery e retorna rapidamente um `task_id`. Depois, o usuario pode consultar o status e o resultado dessa tarefa.
 
----
+## Objetivo do projeto
 
-## 📌 Funcionalidades
+O objetivo principal e mostrar que tarefas demoradas podem ser executadas em segundo plano, sem bloquear a resposta da API.
 
-* Cálculo de soma assíncrona
-* Cálculo de fatorial assíncrono
-* Consulta de status e resultado de tarefas
-* Listagem de tarefas recentes
-* Simulação de tarefas demoradas
+Neste projeto foram implementadas tarefas para:
 
----
+- Somar dois numeros.
+- Calcular o fatorial de um numero.
+- Consultar o status e resultado das tarefas.
+- Listar tarefas recentes armazenadas no Redis.
 
-## 🛠️ Tecnologias utilizadas
+## Tecnologias utilizadas
 
-* Python 3
-* FastAPI
-* Celery
-* Redis
-* Docker / Docker Compose
-* Pydantic
+- Python
+- FastAPI
+- Uvicorn
+- Celery
+- Redis
+- Docker
+- Docker Compose
 
----
+## Estrutura dos arquivos
 
-## 📁 Estrutura do projeto
-
-```
+```text
 .
-├── fatorial.py
-├── celery_app.py
-├── docker-compose.yml
-├── Dockerfile
-├── requirements.txt
-└── README.md
+|-- celery_app.py
+|-- fatorial.py
+|-- docker-compose.yml
+|-- dockerfile
+|-- requirements.txt
+|-- tests/
+`-- README.md
 ```
 
----
+## Descricao dos arquivos principais
 
-## ⚙️ Como executar o projeto
+### `celery_app.py`
 
-### 1. Clonar o repositório
+Arquivo responsavel pela configuracao do Celery e pela definicao das tarefas assincronas.
+
+Configuracao usada:
+
+```python
+broker="redis://redis:6379/0"
+backend="redis://redis:6379/0"
+```
+
+Tarefas implementadas:
+
+- `calcular_soma(a, b)`
+- `calcular_fatorial(n)`
+
+### `fatorial.py`
+
+Arquivo que contem a aplicacao FastAPI.
+
+Ele possui os endpoints responsaveis por:
+
+- Receber requisicoes HTTP.
+- Disparar tarefas assincronas do Celery.
+- Retornar o `task_id`.
+- Consultar o resultado das tarefas.
+
+Observacao: neste projeto, o arquivo da API se chama `fatorial.py`, funcionando como o arquivo principal da aplicacao FastAPI.
+
+## Como instalar e executar
+
+### 1. Clonar o projeto
 
 ```bash
 git clone <url-do-repositorio>
-cd nome-do-projeto
+cd Jogo
 ```
 
----
-
-### 2. Subir os containers
+### 2. Subir Redis, API e Celery worker
 
 ```bash
 docker compose up --build
 ```
 
----
+Esse comando sobe os seguintes servicos:
 
-## 🔧 Serviços executados
+- `redis`: banco Redis usado pelo Celery.
+- `api`: aplicacao FastAPI.
+- `celery`: worker que executa as tarefas em segundo plano.
 
-### API FastAPI
+## URLs da aplicacao
 
-Acesse:
+API:
 
-```
-http://localhost:8000
-```
-
-Documentação interativa:
-
-```
-http://localhost:8000/docs
+```text
+http://localhost:8001
 ```
 
----
+Swagger / documentacao interativa:
 
-### Redis
+```text
+http://localhost:8001/docs
+```
 
-Utilizado como:
+## Endpoints disponiveis
 
-* Broker do Celery
-* Backend de resultados
-* Armazenamento de tarefas recentes
+### `GET /`
 
----
+Verifica se a API esta rodando.
 
-### Celery Worker
+Exemplo:
 
-Responsável pelo processamento assíncrono das tarefas.
+```bash
+curl http://localhost:8001/
+```
 
----
-
-## 📡 Endpoints disponíveis
-
----
-
-### 🔹 GET /
-
-Retorna mensagem inicial da API
-
----
-
-### 🔹 POST /calcular_soma
-
-**Body:**
+Resposta esperada:
 
 ```json
 {
-  "a": 10,
-  "b": 20
+  "message": "Bem-vindo a API de Calculo!"
 }
 ```
 
----
+### `POST /calcular_soma`
 
-### 🔹 POST /calcular_fatorial
+Dispara uma tarefa assincrona para somar dois numeros.
 
-**Body:**
+Exemplo:
+
+```bash
+curl -X POST http://localhost:8001/calcular_soma \
+  -H "Content-Type: application/json" \
+  -d "{\"a\": 10, \"b\": 20}"
+```
+
+Resposta esperada:
+
+```json
+{
+  "message": "Tarefa de soma iniciada",
+  "task_id": "id-da-tarefa"
+}
+```
+
+### `POST /calcular_fatorial`
+
+Dispara uma tarefa assincrona para calcular o fatorial de um numero.
+
+Exemplo:
+
+```bash
+curl -X POST http://localhost:8001/calcular_fatorial \
+  -H "Content-Type: application/json" \
+  -d "{\"n\": 5}"
+```
+
+Resposta esperada:
+
+```json
+{
+  "message": "Tarefa de fatorial iniciada",
+  "task_id": "id-da-tarefa"
+}
+```
+
+A resposta retorna rapidamente com o `task_id`. O calculo do fatorial continua sendo executado pelo Celery worker em segundo plano.
+
+### `GET /resultado/{task_id}`
+
+Consulta o status e o resultado de uma tarefa.
+
+Exemplo:
+
+```bash
+curl http://localhost:8001/resultado/id-da-tarefa
+```
+
+Resposta enquanto a tarefa ainda esta em execucao:
+
+```json
+{
+  "task_id": "id-da-tarefa",
+  "status": "PENDING",
+  "result": null
+}
+```
+
+Resposta depois da conclusao do fatorial de 5:
+
+```json
+{
+  "task_id": "id-da-tarefa",
+  "status": "SUCCESS",
+  "result": 120
+}
+```
+
+### `GET /resultado/recentes`
+
+Lista as tarefas recentes salvas no Redis.
+
+Exemplo:
+
+```bash
+curl http://localhost:8001/resultado/recentes
+```
+
+### `GET /debug/redis`
+
+Mostra dados armazenados no Redis. Esse endpoint foi criado apenas para debug academico.
+
+## Como testar pelo Swagger
+
+1. Acesse `http://localhost:8001/docs`.
+2. Execute o endpoint `POST /calcular_fatorial`.
+3. Envie o corpo:
 
 ```json
 {
@@ -127,119 +224,54 @@ Retorna mensagem inicial da API
 }
 ```
 
----
-
-### 🔹 GET /resultado/{task_id}
-
-Consulta o status e resultado da tarefa.
-
----
-
-### 🔹 GET /resultado/recentes
-
-Lista as últimas tarefas executadas.
-
----
-
-### 🔹 GET /debug/redis
-
-Endpoint para debug (uso apenas acadêmico).
-
----
-
-## 🧪 Como testar a aplicação
-
-### 1. Criar uma tarefa
-
-Exemplo:
-
-```
-POST /calcular_fatorial
-```
-
-Resposta:
+4. Copie o `task_id` retornado.
+5. Execute `GET /resultado/{task_id}` usando esse ID.
+6. Aguarde alguns segundos e execute novamente ate aparecer:
 
 ```json
 {
-  "message": "Tarefa de fatorial iniciada",
-  "task_id": "abc123"
-}
-```
-
----
-
-### 2. Consultar imediatamente (task em execução)
-
-```
-GET /resultado/abc123
-```
-
-Resposta:
-
-```json
-{
-  "task_id": "abc123",
-  "status": "PENDING",
-  "result": null
-}
-```
-
----
-
-### 3. Consultar após alguns segundos
-
-(aguarde ~5 segundos por causa do `time.sleep()`)
-
-```json
-{
-  "task_id": "abc123",
   "status": "SUCCESS",
   "result": 120
 }
 ```
 
----
+## Evidencias de teste
 
-## ⏱️ Simulação de processamento
+Para comprovar o funcionamento, inclua prints ou logs mostrando:
 
-As tarefas utilizam:
+- O comando `docker compose up --build` executando os servicos.
+- A API retornando um `task_id` no endpoint `POST /calcular_fatorial`.
+- O Celery worker recebendo a tarefa.
+- O endpoint `GET /resultado/{task_id}` retornando `SUCCESS`.
+- O resultado correto do fatorial, por exemplo `120` para `5!`.
 
-```python
-time.sleep(5)
+Exemplo de log esperado do Celery:
+
+```text
+Task celery_app.calcular_fatorial[id-da-tarefa] received
+Task celery_app.calcular_fatorial[id-da-tarefa] succeeded in 5.0s: 120
 ```
 
-para simular operações demoradas e demonstrar o funcionamento do Celery.
+Exemplo de resultado esperado:
 
----
-
-## 📊 Evidências de execução
-
-### ✔️ Fluxo testado
-
-1. Criação de tarefa via API
-2. Status inicial: `PENDING`
-3. Execução no Celery Worker
-4. Resultado final: `SUCCESS`
-
----
-
-### ✔️ Log do Worker (exemplo)
-
-```
-Task calcular_fatorial[abc123] received
-Task calcular_fatorial[abc123] succeeded in 5.01s: 120
+```json
+{
+  "task_id": "id-da-tarefa",
+  "status": "SUCCESS",
+  "result": 120
+}
 ```
 
----
+## Por que a API nao bloqueia?
 
-## ⚠️ Observações
+Quando o usuario chama `POST /calcular_fatorial`, a API apenas envia a tarefa para a fila do Celery e retorna o `task_id`.
 
-* O uso de `time.sleep()` é apenas para fins acadêmicos
-* Em produção, tarefas devem representar processamento real
-* Endpoint `/debug/redis` é apenas para debug
+O processamento real acontece no Celery worker. Assim, a API continua livre para receber outras requisicoes enquanto a tarefa esta sendo executada.
 
----
+## Parar a aplicacao
 
-## 👤 Autor
+Para parar os containers:
 
-Kauan
+```bash
+docker compose down
+```

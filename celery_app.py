@@ -1,30 +1,33 @@
+import os
 import time
+
 from celery import Celery
-from fastapi import HTTPException
+
+
+REDIS_URL = os.getenv("REDIS_URL", "redis://redis:6379/0")
+
 app = Celery(
     "meu_projeto",
-    broker="redis://redis:6379/0",
-    backend="redis://redis:6379/0"
+    broker=REDIS_URL,
+    backend=REDIS_URL,
 )
 
 
 @app.task
-def calcular_soma(a, b):
+def calcular_soma(a: int, b: int) -> int:
     time.sleep(10)
     return a + b
 
 
 @app.task
-def calcular_fatorial(n):
+def calcular_fatorial(n: int) -> int:
     if n < 0:
-       raise HTTPException(status_code=400, detail="Número inválido")
-    time.sleep(5)
-    resultado = 1
+        raise ValueError("Numero invalido: o fatorial nao aceita numero negativo")
 
-    for i in range(1, n + 1):
+    time.sleep(5)
+
+    resultado = 1
+    for i in range(2, n + 1):
         resultado *= i
-    
 
     return resultado
-
-
