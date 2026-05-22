@@ -1,9 +1,7 @@
-version: "3.9"
-
 services:
   api:
-    build: .
-    container_name: fastapi_jogos
+    build:
+      context: ./docker
     command: uvicorn Teste:app --host 0.0.0.0 --port 8000 --reload
     ports:
       - "8000:8000"
@@ -18,8 +16,8 @@ services:
       - jogo_network
 
   celery:
-    build: .
-    container_name: celery_worker
+    build:
+      context: ./docker
     command: celery -A Teste:celery_app worker --loglevel=info
     volumes:
       - .:/app
@@ -33,7 +31,6 @@ services:
 
   redis:
     image: redis:7-alpine
-    container_name: redis_cache
     ports:
       - "6379:6379"
     networks:
@@ -41,7 +38,6 @@ services:
 
   zookeeper:
     image: confluentinc/cp-zookeeper:7.4.0
-    container_name: zookeeper_jogos
     environment:
       ZOOKEEPER_CLIENT_PORT: 2181
       ZOOKEEPER_TICK_TIME: 2000
@@ -52,7 +48,6 @@ services:
 
   kafka:
     image: confluentinc/cp-kafka:7.4.0
-    container_name: kafka_jogos
     depends_on:
       - zookeeper
     ports:
@@ -70,7 +65,6 @@ services:
 
   kafka-ui:
     image: provectuslabs/kafka-ui:latest
-    container_name: kafka_jogos_ui
     depends_on:
       - kafka
     ports:
