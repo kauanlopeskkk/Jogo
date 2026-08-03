@@ -1,0 +1,92 @@
+{
+  "info": {
+    "name": "Jogo API",
+    "description": "Coleção da API de Jogos (FastAPI + Redis + Celery + Kafka + Elasticsearch)",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "basic",
+    "basic": [
+      { "key": "username", "value": "{{usuario}}", "type": "string" },
+      { "key": "password", "value": "{{senha}}", "type": "string" }
+    ]
+  },
+  "variable": [
+    { "key": "base_url", "value": "http://localhost:8000" },
+    { "key": "usuario", "value": "amd" },
+    { "key": "senha", "value": "amd123" },
+    { "key": "id_jogo", "value": "1" }
+  ],
+  "item": [
+    {
+      "name": "Raiz",
+      "request": {
+        "method": "GET",
+        "url": { "raw": "{{base_url}}/", "host": ["{{base_url}}"], "path": [""] },
+        "auth": { "type": "noauth" }
+      }
+    },
+    {
+      "name": "Listar jogos",
+      "request": {
+        "method": "GET",
+        "url": {
+          "raw": "{{base_url}}/jogos?page=1&size=10",
+          "host": ["{{base_url}}"],
+          "path": ["jogos"],
+          "query": [
+            { "key": "page", "value": "1" },
+            { "key": "size", "value": "10" }
+          ]
+        }
+      }
+    },
+    {
+      "name": "Adicionar jogo",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"nome\": \"Elden Ring\",\n  \"genero\": \"RPG\",\n  \"plataforma\": \"PC\",\n  \"ano_lancamento\": 2022,\n  \"desenvolvedora\": \"FromSoftware\",\n  \"preco\": 199.90\n}"
+        },
+        "url": { "raw": "{{base_url}}/jogos", "host": ["{{base_url}}"], "path": ["jogos"] }
+      }
+    },
+    {
+      "name": "Atualizar jogo",
+      "request": {
+        "method": "PUT",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"nome\": \"Elden Ring\",\n  \"genero\": \"RPG\",\n  \"plataforma\": \"PC\",\n  \"ano_lancamento\": 2022,\n  \"desenvolvedora\": \"FromSoftware\",\n  \"preco\": 149.90\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/jogos/{{id_jogo}}",
+          "host": ["{{base_url}}"],
+          "path": ["jogos", "{{id_jogo}}"]
+        }
+      }
+    },
+    {
+      "name": "Deletar jogo",
+      "request": {
+        "method": "DELETE",
+        "url": {
+          "raw": "{{base_url}}/jogos/{{id_jogo}}",
+          "host": ["{{base_url}}"],
+          "path": ["jogos", "{{id_jogo}}"]
+        }
+      }
+    },
+    {
+      "name": "Debug Redis (cache)",
+      "request": {
+        "method": "GET",
+        "url": { "raw": "{{base_url}}/debug/redis", "host": ["{{base_url}}"], "path": ["debug", "redis"] },
+        "auth": { "type": "noauth" }
+      }
+    }
+  ]
+}

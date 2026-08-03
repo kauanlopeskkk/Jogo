@@ -7,23 +7,26 @@ import json
 import secrets
 import os
 from sqlalchemy import create_engine, Column, Integer, String , Float
-from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import sessionmaker, Session,declarative_base
-from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker, Session, declarative_base
 from redis import Redis
 from dotenv import load_dotenv
-from celery import Celery
 from celery_app import celery_app
+from elasticsearch import Elasticsearch
 from kaka_producer import enviar_evento
-load_dotenv() 
+load_dotenv()
 
 REDIS_HOST = os.getenv("REDIS_HOST", "localhost")
 REDIS_PORT = os.getenv("REDIS_PORT", 6379)
 
+ELASTICSEARCH_USER = os.getenv("ELASTICSEARCH_USER", "")
+ELASTICSEARCH_PASSWORD = os.getenv("ELASTICSEARCH_PASSWORD", "")
 
-celery_app = Celery("tasks", 
-                    broker=f"redis://{REDIS_HOST}:{REDIS_PORT}/0",
-                    backend=f"redis://{REDIS_HOST}:{REDIS_PORT}/0"
+es = Elasticsearch(
+    f"http://{os.getenv('ELASTICSEARCH_HOST', 'localhost')}:{os.getenv('ELASTICSEARCH_PORT', 9200)}",
+    basic_auth=(ELASTICSEARCH_USER, ELASTICSEARCH_PASSWORD) if ELASTICSEARCH_USER else None,
+    request_timeout=30,
+    max_retries=10,
+    retry_on_timeout=True
 )
 
 DATABASE_URL = "sqlite:///./ListaJogos.db"
