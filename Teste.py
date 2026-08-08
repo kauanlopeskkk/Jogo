@@ -6,6 +6,8 @@ from fastapi.middleware.cors import CORSMiddleware
 import json
 import secrets
 import os
+import logging
+from pythonjsonlogger import jsonlogger
 from sqlalchemy import create_engine, Column, Integer, String , Float
 from sqlalchemy.orm import sessionmaker, Session, declarative_base
 from redis import Redis
@@ -14,6 +16,19 @@ from celery_app import celery_app
 from elasticsearch import Elasticsearch
 from kaka_producer import enviar_evento
 load_dotenv()
+
+LOG_DIR = os.getenv("LOG_DIR", "./logs")
+os.makedirs(LOG_DIR, exist_ok=True)
+
+logger = logging.getLogger("jogo_api")
+logger.setLevel(logging.INFO)
+
+_log_handler = logging.FileHandler(os.path.join(LOG_DIR, "app.log"))
+_log_handler.setFormatter(jsonlogger.JsonFormatter(
+    "%(asctime)s %(levelname)s %(name)s %(message)s",
+    rename_fields={"asctime": "timestamp", "levelname": "level"}
+))
+logger.addHandler(_log_handler)
 
 REDIS_HOST = os.getenv("REDIS_HOST", "localhost")
 REDIS_PORT = os.getenv("REDIS_PORT", 6379)
@@ -165,6 +180,8 @@ def adicionar_Jogo(
         evento=jogo_evento
     )
 
+    logger.info("jogo adicionado", extra={"jogo_id": novo_jogo.id, "nome": novo_jogo.nome})
+
     return {
         "mensagem": "Jogo adicionado com sucesso",
         "jogo": jogo_evento
@@ -268,7 +285,10 @@ def atualizar_jogo(
 
     except Exception as e:
         db.rollback()
+        logger.error("falha ao atualizar jogo", extra={"jogo_id": id_jogo, "erro": str(e)})
         raise HTTPException(status_code=500, detail=str(e))
+
+    logger.info("jogo atualizado", extra={"jogo_id": db_jogo.id, "nome": db_jogo.nome})
 
     return {
         "mensagem": "Jogo atualizado com sucesso",
@@ -304,6 +324,8 @@ def deletar_jogo(
     db.commit()
 
     deletar_jogo_cache_task.delay(id_jogo)
+
+    logger.info("jogo deletado", extra={"jogo_id": id_jogo})
 
     return {
         "mensagem": "Jogo deletado com sucesso"}

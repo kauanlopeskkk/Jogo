@@ -7,4 +7,5 @@ redis
 celery
 kafka-python
 elasticsearch
+python-json-logger
 python-multipart

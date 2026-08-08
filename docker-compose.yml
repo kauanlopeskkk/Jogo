@@ -95,6 +95,7 @@ services:
       - xpack.monitoring.enabled=false
     volumes:
       - ./logstash/pipeline:/usr/share/logstash/pipeline
+      - ./logs:/var/log/app:ro
     ports:
       - "5044:5044"
     networks:
